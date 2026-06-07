@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<!-- saved from url=(0057)file:///C:/Users/irini/Downloads/server-inventory_12.html -->
+<html lang="el"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Server &amp; VM Inventory</title>
+<link href="./Server &amp; VM Inventory_files/css2" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0d1117;--surface:#161b22;--surface2:#1c2330;
+    --border:#30363d;--accent:#00d4aa;--accent2:#4493f8;
+    --warn:#f78166;--ok:#3fb950;--yellow:#d29922;
+    --text:#e6edf3;--muted:#7d8590;--header-bg:#010409;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+  /* LOADING OVERLAY */
+  #loadingOverlay{
+    position:fixed;inset:0;background:var(--bg);z-index:999;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  }
+  .spinner{
+    width:40px;height:40px;border:3px solid var(--border);
+    border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-text{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--muted)}
+
+  /* LOGIN */
+  #loginScreen{
+    min-height:100vh;display:none;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at 60% 40%,#0d2137 0%,#0d1117 70%);
+  }
+  .login-box{
+    background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    padding:44px 48px;width:380px;animation:fadeIn .4s ease;
+  }
+  @keyframes fadeIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+  .login-logo{
+    width:52px;height:52px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+    border-radius:14px;display:flex;align-items:center;justify-content:center;
+    font-size:26px;margin:0 auto 20px;
+  }
+  .login-box h2{font-family:'IBM Plex Mono',monospace;font-size:18px;text-align:center;margin-bottom:6px}
+  .login-sub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:32px}
+  .login-field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+  .login-field label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+  .login-field input{
+    background:var(--bg);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:10px 14px;font-family:'IBM Plex Sans',sans-serif;
+    font-size:14px;outline:none;transition:border-color .2s;
+  }
+  .login-field input:focus{border-color:var(--accent)}
+  .login-err{color:var(--warn);font-size:12px;text-align:center;min-height:18px;margin-bottom:8px}
+  .btn-login{
+    width:100%;padding:11px;background:var(--accent);color:#0d1117;
+    border:none;border-radius:8px;font-family:'IBM Plex Sans',sans-serif;
+    font-size:14px;font-weight:600;cursor:pointer;transition:background .15s;margin-top:4px;
+  }
+  .btn-login:hover{background:#00bfa0}
+  .btn-login:disabled{background:var(--muted);cursor:not-allowed}
+
+  /* APP */
+  #appScreen{display:none;padding:24px}
+  header{display:flex;align-items:center;gap:16px;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+  .logo{width:40px;height:40px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px}
+  h1{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600;letter-spacing:-.5px}
+  h1 span{color:var(--accent)}
+  .subtitle{font-size:13px;color:var(--muted);margin-top:2px}
+  .header-right{margin-left:auto;display:flex;gap:10px;align-items:center}
+  .user-chip{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 14px 5px 8px;font-size:13px}
+  .user-avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--accent2),var(--accent));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff}
+  .sync-status{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px}
+  .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+  .sync-dot.syncing{background:var(--yellow);animation:pulse 1s infinite}
+  .sync-dot.error{background:var(--warn)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  .stats{display:flex;gap:16px;margin-bottom:20px}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 20px;font-family:'IBM Plex Mono',monospace}
+  .stat-value{font-size:22px;font-weight:600;color:var(--accent)}
+  .stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+
+  .toolbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+  input[type="text"],select{background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 12px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;outline:none;transition:border-color .2s}
+  input[type="text"]:focus,select:focus{border-color:var(--accent)}
+  input[type="text"]::placeholder{color:var(--muted)}
+  #searchInput{width:240px}
+
+  button{font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;transition:all .15s}
+  .btn-primary{background:var(--accent);color:#0d1117}
+  .btn-primary:hover{background:#00bfa0}
+  .btn-primary:disabled{background:var(--muted);cursor:not-allowed}
+  .btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+  .btn-secondary:hover{background:var(--surface);border-color:var(--accent2)}
+  .btn-danger{background:transparent;color:var(--warn);border:1px solid transparent;padding:4px 8px;font-size:12px}
+  .btn-danger:hover{background:rgba(247,129,102,.1);border-color:var(--warn)}
+  .btn-edit{background:transparent;color:var(--accent2);border:1px solid transparent;padding:4px 8px;font-size:12px}
+  .btn-edit:hover{background:rgba(68,147,248,.1);border-color:var(--accent2)}
+
+  .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead tr{background:var(--header-bg)}
+  th{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:12px 14px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+  th:hover{color:var(--text)}
+  td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:rgba(255,255,255,.025)}
+  .type-badge{display:inline-flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;padding:3px 8px;border-radius:4px}
+  .type-server{background:rgba(68,147,248,.15);color:var(--accent2)}
+  .type-vm{background:rgba(0,212,170,.12);color:var(--accent)}
+  .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+  .status-online{background:var(--ok);box-shadow:0 0 6px var(--ok)}
+  .status-offline{background:var(--warn)}
+  .status-maintenance{background:var(--yellow)}
+  .status-unknown{background:var(--muted)}
+  .mono{font-family:'IBM Plex Mono',monospace;font-size:12px}
+  .actions{display:flex;gap:4px}
+  .empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+  .empty-state .icon{font-size:40px;margin-bottom:12px}
+
+  /* MODALS */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center}
+  .modal-overlay.active{display:flex}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:600px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:28px;animation:slideUp .2s ease}
+  .modal.modal-sm{width:420px}
+  @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:none;opacity:1}}
+  .modal h2{font-family:'IBM Plex Mono',monospace;font-size:16px;margin-bottom:24px;color:var(--accent)}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .form-group{display:flex;flex-direction:column;gap:6px}
+  .form-group.full{grid-column:1/-1}
+  .form-group label{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+  .form-group input,.form-group select,.form-group textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 12px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;outline:none;transition:border-color .2s}
+  .form-group textarea{resize:vertical;min-height:70px}
+  .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent)}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)}
+  select option{background:var(--surface2)}
+
+  /* USERS */
+  .users-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:16px}
+  .users-table th{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
+  .users-table td{padding:10px 12px;border-bottom:1px solid var(--border)}
+  .users-table tr:last-child td{border-bottom:none}
+  .modal-section-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:20px 0 10px;padding-top:20px;border-top:1px solid var(--border)}
+  .form-row{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;margin-top:4px}
+  .form-row input{width:100%}
+  .pw-hint{font-size:11px;color:var(--muted);margin-top:4px}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loadingOverlay" style="display: none;">
+  <div class="spinner"></div>
+  <div class="loading-text">Σύνδεση με Google Sheets...</div>
+</div>
+
+<!-- LOGIN -->
+<div id="loginScreen" style="display: flex;">
+  <div class="login-box">
+    <div class="login-logo">🖥</div>
+    <h2>Server &amp; VM Inventory</h2>
+    <p class="login-sub">Παρακαλώ συνδεθείτε για να συνεχίσετε</p>
+    <div class="login-field">
+      <label>Όνομα χρήστη</label>
+      <input type="text" id="loginUser" placeholder="username" autocomplete="username">
+    </div>
+    <div class="login-field">
+      <label>Κωδικός</label>
+      <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <div class="login-err" id="loginErr"></div>
+    <button class="btn-login" id="loginBtn" onclick="doLogin()">Είσοδος</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appScreen">
+  <header>
+    <div class="logo">🖥</div>
+    <div>
+      <h1>Server &amp; VM <span>Inventory</span></h1>
+      <div class="subtitle">Καταγραφή υποδομής — Physical Servers &amp; Virtual Machines</div>
+    </div>
+    <div class="header-right">
+      <div class="sync-status"><div class="sync-dot" id="syncDot"></div><span id="syncText">Συγχρονισμένο</span></div>
+      <div class="user-chip">
+        <div class="user-avatar" id="userAvatar"></div>
+        <span id="userLabel"></span>
+      </div>
+      <button class="btn-secondary" onclick="openUsersModal()">👥 Χρήστες</button>
+      <button class="btn-secondary" onclick="exportCSV()">⬇ Export CSV</button>
+      <button class="btn-primary" onclick="openModal()">+ Νέα Εγγραφή</button>
+      <button class="btn-secondary" onclick="doLogout()">⏻ Έξοδος</button>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-value" id="totalCount">0</div><div class="stat-label">Σύνολο</div></div>
+    <div class="stat"><div class="stat-value" id="serverCount">0</div><div class="stat-label">Servers</div></div>
+    <div class="stat"><div class="stat-value" id="vmCount">0</div><div class="stat-label">Virtual Machines</div></div>
+    <div class="stat"><div class="stat-value" id="onlineCount" style="color:var(--ok)">0</div><div class="stat-label">Online</div></div>
+  </div>
+
+  <div class="toolbar">
+    <input type="text" id="searchInput" placeholder="🔍 Αναζήτηση..." oninput="filterTable()">
+    <select id="typeFilter" onchange="filterTable()">
+      <option value="">Τύπος: Όλα</option><option value="Server">Server</option><option value="VM">Virtual Machine</option>
+    </select>
+    <select id="statusFilter" onchange="filterTable()">
+      <option value="">Status: Όλα</option><option>Online</option><option>Offline</option><option>Maintenance</option><option>Unknown</option>
+    </select>
+    <select id="osFilter" onchange="filterTable()">
+      <option value="">OS: Όλα</option><option value="Windows">Windows</option><option value="Linux">Linux</option><option value="ESXi">ESXi</option>
+    </select>
+    <button class="btn-secondary" style="margin-left:auto" onclick="refreshData()">🔄 Ανανέωση</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th onclick="sortTable(&#39;name&#39;)">Hostname</th>
+        <th onclick="sortTable(&#39;type&#39;)">Τύπος</th>
+        <th onclick="sortTable(&#39;status&#39;)">Status</th>
+        <th onclick="sortTable(&#39;ip&#39;)">IP Address</th>
+        <th onclick="sortTable(&#39;os&#39;)">Λειτουργικό</th>
+        <th onclick="sortTable(&#39;cpu&#39;)">CPU</th>
+        <th onclick="sortTable(&#39;ram&#39;)">RAM (GB)</th>
+        <th onclick="sortTable(&#39;storage&#39;)">Storage (GB)</th>
+        <th onclick="sortTable(&#39;host&#39;)">Host / Hypervisor</th>
+        <th onclick="sortTable(&#39;location&#39;)">Τοποθεσία</th>
+        <th onclick="sortTable(&#39;env&#39;)">Περιβάλλον</th>
+        <th onclick="sortTable(&#39;owner&#39;)">Υπεύθυνος</th>
+        <th onclick="sortTable(&#39;department&#39;)">Τμήμα</th>
+        <th onclick="sortTable(&#39;purpose&#39;)">Χρήση</th>
+        <th onclick="sortTable(&#39;lastUpdate&#39;)">Ενημέρωση</th>
+        <th>Ενέργειες</th>
+      </tr></thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- RECORD MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2 id="modalTitle">➕ Νέα Εγγραφή</h2>
+    <div class="form-grid">
+      <div class="form-group"><label>Hostname *</label><input type="text" id="f_name" placeholder="srv-web-01"></div>
+      <div class="form-group"><label>Τύπος *</label><select id="f_type"><option value="Server">Server (Physical)</option><option value="VM">Virtual Machine</option></select></div>
+      <div class="form-group"><label>IP Address</label><input type="text" id="f_ip" placeholder="192.168.1.10"></div>
+      <div class="form-group"><label>Status</label><select id="f_status"><option>Online</option><option>Offline</option><option>Maintenance</option><option>Unknown</option></select></div>
+      <div class="form-group"><label>Λειτουργικό Σύστημα</label><input type="text" id="f_os" placeholder="Ubuntu 22.04 LTS"></div>
+      <div class="form-group"><label>CPU (cores)</label><input type="text" id="f_cpu" placeholder="8"></div>
+      <div class="form-group"><label>RAM (GB)</label><input type="text" id="f_ram" placeholder="32"></div>
+      <div class="form-group"><label>Storage (GB)</label><input type="text" id="f_storage" placeholder="500"></div>
+      <div class="form-group"><label>Host / Hypervisor</label><input type="text" id="f_host" placeholder="esxi-01"></div>
+      <div class="form-group"><label>Τοποθεσία / Rack</label><input type="text" id="f_location" placeholder="DC1 / Rack-A4"></div>
+      <div class="form-group"><label>Περιβάλλον</label><select id="f_env"><option>Production</option><option>Staging</option><option>Development</option><option>Test</option><option>DR</option></select></div>
+      <div class="form-group"><label>Υπεύθυνος</label><input type="text" id="f_owner" placeholder="Γιάννης Π."></div>
+      <div class="form-group"><label>Τμήμα</label><input type="text" id="f_department" placeholder="Πληροφορική"></div>
+      <div class="form-group"><label>Χρήση / Ρόλος</label><input type="text" id="f_purpose" placeholder="Web Server, DB, Backup"></div>
+      <div class="form-group"><label>MAC Address</label><input type="text" id="f_mac" placeholder="AA:BB:CC:DD:EE:FF"></div>
+      <div class="form-group"><label>Ημ/νία Εγκατάστασης</label><input type="date" id="f_installDate"></div>
+      <div class="form-group full"><label>Σημειώσεις</label><textarea id="f_notes" placeholder="Επιπλέον πληροφορίες..."></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Ακύρωση</button>
+      <button class="btn-primary" id="saveRecordBtn" onclick="saveRecord()">💾 Αποθήκευση</button>
+    </div>
+  </div>
+</div>
+
+<!-- USERS MODAL -->
+<div class="modal-overlay" id="usersOverlay">
+  <div class="modal modal-sm">
+    <h2>👥 Διαχείριση Χρηστών</h2>
+    <table class="users-table">
+      <thead><tr><th>Χρήστης</th><th>Τελ. Σύνδεση</th><th></th></tr></thead>
+      <tbody id="usersTbody"></tbody>
+    </table>
+    <p class="modal-section-title">➕ Νέος Χρήστης</p>
+    <div class="form-row">
+      <div class="form-group"><label>Username</label><input type="text" id="nu_user" placeholder="username"></div>
+      <div class="form-group"><label>Κωδικός</label><input type="password" id="nu_pass" placeholder="••••••••"></div>
+      <button class="btn-primary" style="height:36px;align-self:end" onclick="addUser()">+ Προσθήκη</button>
+    </div>
+    <p class="pw-hint" id="nu_err" style="color:var(--warn);min-height:16px"></p>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeUsersModal()">Κλείσιμο</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHANGE PASSWORD MODAL -->
+<div class="modal-overlay" id="chpwOverlay">
+  <div class="modal modal-sm">
+    <h2>🔑 Αλλαγή Κωδικού</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:20px">Χρήστης: <strong id="chpw_username" style="color:var(--text)"></strong></p>
+    <div class="form-group" style="margin-bottom:12px"><label>Νέος Κωδικός</label><input type="password" id="chpw_new" placeholder="••••••••"></div>
+    <div class="form-group"><label>Επιβεβαίωση</label><input type="password" id="chpw_confirm" placeholder="••••••••"></div>
+    <p style="font-size:12px;color:var(--warn);min-height:16px;margin-top:8px" id="chpw_err"></p>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeChpw()">Ακύρωση</button>
+      <button class="btn-primary" onclick="savePassword()">💾 Αποθήκευση</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// GOOGLE SHEETS API
+// ═══════════════════════════════════════════
+const API = 'https://script.google.com/macros/s/AKfycbxVAzaAi50yDNEeqzg-1gTYMFHb_tcb3Ia4HtqUyEjBA-AzMlTqu_A9oiZTQ0cNYIcK/exec';
+
+function apiGet(action) {
+  return new Promise(function(resolve, reject) {
+    var cb = 'cb_' + Date.now();
+    var script = document.createElement('script');
+    var timeout = setTimeout(function() {
+      delete window[cb];
+      if (document.body.contains(script)) document.body.removeChild(script);
+      reject(new Error('Timeout'));
+    }, 10000);
+    window[cb] = function(data) {
+      clearTimeout(timeout);
+      delete window[cb];
+      if (document.body.contains(script)) document.body.removeChild(script);
+      resolve(data);
+    };
+    script.src = API + '?action=' + action + '&callback=' + cb;
+    script.onerror = function() { clearTimeout(timeout); reject(new Error('Failed to fetch')); };
+    document.body.appendChild(script);
+  });
+}
+async function apiPost(payload) {
+  await fetch(API, { method:'POST', body:JSON.stringify(payload), mode:'no-cors' });
+  await new Promise(function(res) { setTimeout(res, 1200); });
+  return { ok: true };
+}
+
+// ═══════════════════════════════════════════
+// SYNC STATUS UI
+// ═══════════════════════════════════════════
+function setSyncing() {
+  document.getElementById('syncDot').className = 'sync-dot syncing';
+  document.getElementById('syncText').textContent = 'Αποθήκευση...';
+}
+function setSynced() {
+  document.getElementById('syncDot').className = 'sync-dot';
+  document.getElementById('syncText').textContent = 'Συγχρονισμένο';
+}
+function setSyncError() {
+  document.getElementById('syncDot').className = 'sync-dot error';
+  document.getElementById('syncText').textContent = 'Σφάλμα σύνδεσης';
+}
+
+// ═══════════════════════════════════════════
+// HASH
+// ═══════════════════════════════════════════
+async function hashPw(pw) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+// ═══════════════════════════════════════════
+// USERS (Google Sheets)
+// ═══════════════════════════════════════════
+let users = [];
+
+async function loadUsers() {
+  users = await apiGet('getUsers');
+  if (!Array.isArray(users)) users = [];
+}
+
+async function saveUsers() {
+  setSyncing();
+  try { await apiPost({ action:'saveUsers', users }); setSynced(); }
+  catch(e) { setSyncError(); }
+}
+
+async function initDefaultAdmin() {
+  if (!users.find(u => u.username === 'admin')) {
+    const hash = await hashPw('admin123');
+    users.push({ username:'admin', hash, lastLogin:'' });
+    await saveUsers();
+  }
+}
+
+// ═══════════════════════════════════════════
+// LOGIN / LOGOUT
+// ═══════════════════════════════════════════
+let currentUser = null;
+
+async function doLogin() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  const err = document.getElementById('loginErr');
+  const btn = document.getElementById('loginBtn');
+  if (!u || !p) { err.textContent = 'Συμπληρώστε όνομα χρήστη και κωδικό.'; return; }
+  btn.disabled = true; btn.textContent = 'Σύνδεση...';
+  const h = await hashPw(p);
+  const found = users.find(x => x.username === u && x.hash === h);
+  if (!found) {
+    err.textContent = 'Λάθος όνομα χρήστη ή κωδικός.';
+    btn.disabled = false; btn.textContent = 'Είσοδος'; return;
+  }
+  found.lastLogin = new Date().toLocaleString('el-GR');
+  await saveUsers();
+  currentUser = u;
+  err.textContent = '';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+  document.getElementById('userLabel').textContent = u;
+  document.getElementById('userAvatar').textContent = u[0].toUpperCase();
+  btn.disabled = false; btn.textContent = 'Είσοδος';
+  await refreshData();
+}
+
+function doLogout() {
+  currentUser = null;
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+
+document.getElementById('loginPass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+document.getElementById('loginUser').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('loginPass').focus(); });
+
+// ═══════════════════════════════════════════
+// USERS MODAL
+// ═══════════════════════════════════════════
+function openUsersModal() { renderUsersTable(); document.getElementById('usersOverlay').classList.add('active'); }
+function closeUsersModal() {
+  document.getElementById('usersOverlay').classList.remove('active');
+  document.getElementById('nu_user').value = '';
+  document.getElementById('nu_pass').value = '';
+  document.getElementById('nu_err').textContent = '';
+}
+
+function renderUsersTable() {
+  document.getElementById('usersTbody').innerHTML = users.map(u => `
+    <tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--accent2),var(--accent));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff">${u.username[0].toUpperCase()}</div>
+          <strong>${u.username}</strong>
+          ${u.username===currentUser?'<span style="font-size:10px;background:rgba(0,212,170,.15);color:var(--accent);padding:2px 6px;border-radius:4px;margin-left:4px">εσείς</span>':''}
+        </div>
+      </td>
+      <td style="color:var(--muted);font-size:12px">${u.lastLogin||'—'}</td>
+      <td>
+        <div style="display:flex;gap:4px;justify-content:flex-end">
+          ${(u.username!=='admin'||currentUser==='admin')?'<button class="btn-edit" onclick="openChpw(\''+u.username+'\')">🔑</button>':''}
+          ${(u.username!==currentUser&&u.username!=='admin')?'<button class="btn-danger" onclick="deleteUser(\''+u.username+'\')">✕</button>':''}
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+async function addUser() {
+  const u = document.getElementById('nu_user').value.trim();
+  const p = document.getElementById('nu_pass').value;
+  const err = document.getElementById('nu_err');
+  if (!u) { err.textContent = 'Εισάγετε όνομα χρήστη.'; return; }
+  if (p.length < 4) { err.textContent = 'Ο κωδικός πρέπει να έχει τουλάχιστον 4 χαρακτήρες.'; return; }
+  if (users.find(x => x.username===u)) { err.textContent = 'Αυτό το username υπάρχει ήδη.'; return; }
+  const hash = await hashPw(p);
+  users.push({ username:u, hash, lastLogin:'' });
+  await saveUsers();
+  document.getElementById('nu_user').value = '';
+  document.getElementById('nu_pass').value = '';
+  err.textContent = '';
+  renderUsersTable();
+}
+
+async function deleteUser(username) {
+  if (username==='admin') { alert('Ο λογαριασμός admin δεν μπορεί να διαγραφεί.'); return; }
+  if (username===currentUser) { alert('Δεν μπορείς να διαγράψεις τον εαυτό σου.'); return; }
+  if (!confirm('Διαγραφή χρήστη "' + username + '";')) return;
+  users = users.filter(u => u.username !== username);
+  await saveUsers();
+  renderUsersTable();
+}
+
+// ═══════════════════════════════════════════
+// CHANGE PASSWORD
+// ═══════════════════════════════════════════
+let chpwTarget = null;
+function openChpw(username) {
+  if (username==='admin' && currentUser!=='admin') { alert('Μόνο ο admin μπορεί να αλλάξει τον κωδικό του admin.'); return; }
+  chpwTarget = username;
+  document.getElementById('chpw_username').textContent = username;
+  document.getElementById('chpw_new').value = '';
+  document.getElementById('chpw_confirm').value = '';
+  document.getElementById('chpw_err').textContent = '';
+  document.getElementById('chpwOverlay').classList.add('active');
+}
+function closeChpw() { document.getElementById('chpwOverlay').classList.remove('active'); }
+
+async function savePassword() {
+  const np = document.getElementById('chpw_new').value;
+  const cp = document.getElementById('chpw_confirm').value;
+  const err = document.getElementById('chpw_err');
+  if (np.length < 4) { err.textContent = 'Ο κωδικός πρέπει να έχει τουλάχιστον 4 χαρακτήρες.'; return; }
+  if (np !== cp) { err.textContent = 'Οι κωδικοί δεν ταιριάζουν.'; return; }
+  const hash = await hashPw(np);
+  const u = users.find(x => x.username===chpwTarget);
+  if (u) { u.hash = hash; await saveUsers(); }
+  closeChpw();
+  renderUsersTable();
+}
+
+// ═══════════════════════════════════════════
+// INVENTORY DATA (Google Sheets)
+// ═══════════════════════════════════════════
+let data = [];
+let editId = null, sortCol = null, sortAsc = true;
+
+function today() { return new Date().toISOString().split('T')[0]; }
+
+async function refreshData() {
+  setSyncing();
+  try {
+    const rows = await apiGet('getData');
+    data = Array.isArray(rows) ? rows : [];
+    setSynced();
+  } catch(e) { setSyncError(); }
+  filterTable();
+}
+
+async function saveData() {
+  setSyncing();
+  try { await apiPost({ action:'saveData', data }); setSynced(); }
+  catch(e) { setSyncError(); throw e; }
+}
+
+// ═══════════════════════════════════════════
+// TABLE
+// ═══════════════════════════════════════════
+function renderTable(rows) {
+  const tbody = document.getElementById('tableBody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="16"><div class="empty-state"><div class="icon">🗄️</div><p>Δεν βρέθηκαν εγγραφές</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td class="mono">${r.name}</td>
+      <td><span class="type-badge ${r.type==='Server'?'type-server':'type-vm'}">${r.type==='Server'?'⬛ Server':'🔷 VM'}</span></td>
+      <td><span class="status-dot status-${(r.status||'unknown').toLowerCase()}"></span><span>${r.status||'—'}</span></td>
+      <td class="mono">${r.ip||'—'}</td>
+      <td>${r.os||'—'}</td>
+      <td class="mono">${r.cpu||'—'}</td>
+      <td class="mono">${r.ram||'—'}</td>
+      <td class="mono">${r.storage||'—'}</td>
+      <td>${r.host||'—'}</td>
+      <td>${r.location||'—'}</td>
+      <td><span style="font-size:11px;padding:2px 7px;border-radius:3px;background:${envColor(r.env)}">${r.env||'—'}</span></td>
+      <td>${r.owner||'—'}</td>
+      <td>${r.department||'—'}</td>
+      <td>${r.purpose||'—'}</td>
+      <td class="mono" style="color:var(--muted);font-size:11px">${r.lastUpdate||'—'}</td>
+      <td><div class="actions">
+        <button class="btn-edit" onclick="editRecord('${r.id}')">✏ Edit</button>
+        <button class="btn-danger" onclick="deleteRecord('${r.id}')">✕</button>
+      </div></td>
+    </tr>`).join('');
+  updateStats();
+}
+
+function envColor(e) {
+  return ({Production:'rgba(247,129,102,.15)',Staging:'rgba(210,153,34,.15)',Development:'rgba(68,147,248,.15)',Test:'rgba(125,133,144,.15)',DR:'rgba(0,212,170,.12)'})[e]||'rgba(125,133,144,.1)';
+}
+function updateStats() {
+  document.getElementById('totalCount').textContent = data.length;
+  document.getElementById('serverCount').textContent = data.filter(r=>r.type==='Server').length;
+  document.getElementById('vmCount').textContent = data.filter(r=>r.type==='VM').length;
+  document.getElementById('onlineCount').textContent = data.filter(r=>r.status==='Online').length;
+}
+function filterTable() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const t = document.getElementById('typeFilter').value;
+  const s = document.getElementById('statusFilter').value;
+  const o = document.getElementById('osFilter').value;
+  renderTable(data.filter(r =>
+    Object.values(r).join(' ').toLowerCase().includes(q) &&
+    (!t||r.type===t) && (!s||r.status===s) &&
+    (!o||(r.os&&r.os.toLowerCase().includes(o.toLowerCase())))
+  ));
+}
+function sortTable(col) {
+  sortAsc = sortCol===col ? !sortAsc : true; sortCol=col;
+  data.sort((a,b)=>{const va=(a[col]||'').toString().toLowerCase(),vb=(b[col]||'').toString().toLowerCase();return sortAsc?va.localeCompare(vb):vb.localeCompare(va);});
+  filterTable();
+}
+
+// ═══════════════════════════════════════════
+// RECORD CRUD
+// ═══════════════════════════════════════════
+const FIELDS = ['name','type','ip','status','os','cpu','ram','storage','host','location','env','owner','department','purpose','mac','installDate','notes'];
+
+function openModal(record=null) {
+  editId = record ? record.id : null;
+  document.getElementById('modalTitle').textContent = record ? '✏ Επεξεργασία' : '➕ Νέα Εγγραφή';
+  FIELDS.forEach(f => { const el=document.getElementById('f_'+f); if(el) el.value=record?(record[f]||''):''; });
+  document.getElementById('modalOverlay').classList.add('active');
+}
+function closeModal() { document.getElementById('modalOverlay').classList.remove('active'); }
+
+async function saveRecord() {
+  if (!document.getElementById('f_name').value.trim()) { alert('Το Hostname είναι υποχρεωτικό.'); return; }
+  const btn = document.getElementById('saveRecordBtn');
+  btn.disabled = true; btn.textContent = '⏳ Αποθήκευση...';
+  const rec = { lastUpdate:today() };
+  FIELDS.forEach(f => rec[f] = document.getElementById('f_'+f).value);
+  if (editId) {
+    const idx = data.findIndex(r=>r.id===editId);
+    data[idx] = { ...data[idx], ...rec };
+  } else {
+    rec.id = Date.now().toString();
+    data.push(rec);
+  }
+  try { await saveData(); closeModal(); filterTable(); }
+  catch(e) { alert('Σφάλμα αποθήκευσης. Ελέγξτε τη σύνδεση.'); }
+  btn.disabled = false; btn.textContent = '💾 Αποθήκευση';
+}
+
+function editRecord(id) { openModal(data.find(r=>String(r.id)===String(id))); }
+
+async function deleteRecord(id) {
+  if (!confirm('Διαγραφή εγγραφής;')) return;
+  data = data.filter(r=>String(r.id)!==String(id));
+  await saveData();
+  filterTable();
+}
+
+function exportCSV() {
+  const hdrs=['Hostname','Τύπος','Status','IP','OS','CPU','RAM','Storage','Host','Location','Environment','Υπεύθυνος','Τμήμα','Ρόλος','MAC','Εγκατάσταση','Σημειώσεις','Ενημέρωση'];
+  const keys=['name','type','status','ip','os','cpu','ram','storage','host','location','env','owner','department','purpose','mac','installDate','notes','lastUpdate'];
+  const csv=[hdrs.join(','),...data.map(r=>keys.map(k=>'"'+(r[k]||'').replace(/"/g,'""')+'"').join(','))].join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download='server-inventory.csv'; a.click();
+}
+
+['modalOverlay','usersOverlay','chpwOverlay'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',function(e){if(e.target===this)this.classList.remove('active');});
+});
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+(async () => {
+  try {
+    await loadUsers();
+    await initDefaultAdmin();
+  } catch(e) {
+    console.warn('Δεν ήταν δυνατή η σύνδεση με Google Sheets:', e);
+  }
+  document.getElementById('loadingOverlay').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+})();
+</script><script src="./Server &amp; VM Inventory_files/exec"></script>
+
+
+</body></html>
